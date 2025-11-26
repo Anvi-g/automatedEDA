@@ -1,0 +1,48 @@
+# runner.py
+import asyncio
+from google.adk.runners import Runner
+from google.adk.sessions import InMemorySessionService
+from google.genai import types
+from agents import orchestrator_agent
+
+async def main():
+    print("🚀 Multi-Agent Data Cleaning Started...")
+    print("   [Orchestrator] <---> [Code Executor]")
+    print("---------------------------------------")
+    
+    # 1. Setup Session
+    session_service = InMemorySessionService()
+    session = await session_service.create_session(
+        app_name="agents", 
+        user_id="user_01", 
+        session_id="session_01"
+    )
+    
+    # 2. Setup Runner with the ORCHESTRATOR
+    runner = Runner(
+        agent=orchestrator_agent, 
+        app_name="agents",
+        session_service=session_service
+    )
+
+    # 3. Trigger Prompt
+    # Ensure 'housing_data.csv' is in this folder
+    query = "Clean the dataset 'housing_data.csv' for Linear Regression."
+    content = types.Content(role="user", parts=[types.Part(text=query)])
+
+    # 4. Run Async Loop
+    async for event in runner.run_async(user_id="user_01", session_id="session_01", new_message=content):
+        
+        # Display Agent Thoughts (Orchestrator Planning)
+        if event.content and event.content.parts:
+            for part in event.content.parts:
+                if part.text:
+                    # Print who is speaking (Orchestrator or Executor)
+                    print(f"\n🤖 [{event.author}]: {part.text.strip()}")
+                
+                # Note: The "Code" events happen inside the Executor's turn. 
+                # Sometimes the Orchestrator hides the raw code tool output, 
+                # but you will see the Executor's text response confirming the action.
+
+if __name__ == "__main__":
+    asyncio.run(main())
