@@ -1,1 +1,45 @@
+virt/# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+# Virtual Environment
+virt/
 venv/
+env/
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+# Data files - Ignore processed data, keep raw data
+data/processed/
+*.csv
+!data/raw_dataset.csv
+# Logs
+*.log
+logs/
+# Cache
+.mypy_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+# OS
+.DS_Store
+Thumbs.db
