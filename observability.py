@@ -7,6 +7,8 @@ COLORS = {
     "orchestrator": "\033[94m",      # Blue
     "critic_agent": "\033[93m",      # Yellow
     "advanced_engineer": "\033[92m", # Green
+    "basiceda_agent": "\033[96m",    # Cyan
+    "linear_orchestrator_agent": "\033[94m", # Blue (Alias)
     "tool": "\033[90m",              # Grey (Tool Output)
     "system": "\033[95m",            # Magenta (System Msgs)
     "RESET": "\033[0m",
@@ -19,35 +21,34 @@ class TraceLogger:
         Initializes the logger to write to both a file and the console.
         """
         # 1. Setup File Logging (Clean text, no colors)
-        logging.basicConfig(
-            filename=filename,
-            level=logging.INFO,
-            format='%(asctime)s - %(message)s',
-            filemode='w' # Overwrite the log file each run
-        )
-        self.console = sys.stdout
+        # We use a unique logger name to avoid conflicts with other libs
+        self.file_logger = logging.getLogger("ADEP_File_Logger")
+        self.file_logger.setLevel(logging.INFO)
+        # Remove existing handlers to prevent duplicates if re-initialized
+        if self.file_logger.hasHandlers():
+            self.file_logger.handlers.clear()
+            
+        file_handler = logging.FileHandler(filename, mode='w')
+        formatter = logging.Formatter('%(asctime)s - %(message)s', datefmt='%H:%M:%S')
+        file_handler.setFormatter(formatter)
+        self.file_logger.addHandler(file_handler)
 
     def log_event(self, agent_name, event_type, content):
         """
         Logs an event with specific formatting based on the actor.
-        
-        Args:
-            agent_name (str): 'orchestrator', 'critic_agent', etc.
-            event_type (str): 'THOUGHT', 'TOOL_CALL', 'TOOL_OUTPUT', 'SYSTEM'
-            content (str): The actual message or code.
         """
         timestamp = datetime.now().strftime("%H:%M:%S")
         
-        # Clean agent name for lookup (handle None or unexpected casing)
+        # Clean agent name
         safe_agent_name = str(agent_name).lower() if agent_name else "unknown"
         
-        # --- 1. FILE LOGGING (Persistent Record) ---
-        logging.info(f"[{safe_agent_name.upper()}] [{event_type}] {content}")
+        # --- 1. FILE LOGGING (Full Content) ---
+        self.file_logger.info(f"[{safe_agent_name.upper()}] [{event_type}] {content}")
 
-        # --- 2. CONSOLE LOGGING (Visual Experience) ---
+        # --- 2. CONSOLE LOGGING (Summarized) ---
         color = COLORS.get(safe_agent_name, COLORS["RESET"])
         
-        # Create a bold header: [TIME] AGENT_NAME
+        # Header: [TIME] AGENT_NAME
         header = f"{COLORS['BOLD']}{color}[{timestamp}] {safe_agent_name.upper()}{COLORS['RESET']}"
         
         if event_type == "THOUGHT":
@@ -56,22 +57,28 @@ class TraceLogger:
             
         elif event_type == "TOOL_CALL":
             print(f"\n{header} 🛠️  {COLORS['BOLD']}CALLING TOOL:{COLORS['RESET']}")
-            print(f"{COLORS['tool']}{content}{COLORS['RESET']}")
+            
+            # --- CONSOLE CLEANUP: Show only first 5 lines of code ---
+            lines = str(content).split('\n')
+            if len(lines) > 5:
+                preview = "\n".join(lines[:5])
+                print(f"{COLORS['tool']}{preview}\n... [Code Truncated for Console. See Log] ...{COLORS['RESET']}")
+            else:
+                print(f"{COLORS['tool']}{content}{COLORS['RESET']}")
             
         elif event_type == "TOOL_OUTPUT":
             print(f"\n{header} ⚙️  {COLORS['BOLD']}TOOL RESULT:{COLORS['RESET']}")
-            # Truncate extremely long tool outputs (like df.info) for the console
-            # but keep them full in the file log.
-            display_content = content
-            if len(content) > 1000:
-                display_content = content[:1000] + "\n... [Output Truncated for Console] ..."
             
-            print(f"{COLORS['tool']}{display_content}{COLORS['RESET']}")
+            # --- CONSOLE CLEANUP: Truncate long outputs (df.info, etc) ---
+            clean_content = str(content)
+            if len(clean_content) > 300:
+                short_msg = clean_content[:300] + f"... [Output Truncated. Full result in agent_trace.log] ..."
+                print(f"{COLORS['tool']}{short_msg}{COLORS['RESET']}")
+            else:
+                print(f"{COLORS['tool']}{clean_content}{COLORS['RESET']}")
 
         elif event_type == "SYSTEM":
-            # System messages stand out
             print(f"\n{COLORS['system']}{COLORS['BOLD']}[SYSTEM] {content}{COLORS['RESET']}")
         
         else:
-            # Fallback for unknown event types
             print(f"\n{header}: {content}")

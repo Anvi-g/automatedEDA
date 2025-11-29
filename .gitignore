@@ -3,6 +3,6 @@ agents.py.bak
 check_models.py
 generate_data.py
 tools.py.bak
-__pychche__/
+__pycache__/
 agent_trace.log
 runner.py.bak
