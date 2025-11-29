@@ -55,7 +55,7 @@ def sync_file_to_memory():
         import pandas as pd
         if os.path.exists('linear_working.csv'):
             SHARED_GLOBALS['train_data'] = pd.read_csv('linear_working.csv')
-            SHARED_GLOBALS['readiness_score'] = 1.0 
+             
             return "Synced 'linear_working.csv' back to memory."
         return "File not found."
     except Exception as e: return f"Sync Error: {e}"
@@ -66,43 +66,99 @@ def create_linear_critic():
         model="gemini-2.0-flash", 
         instruction="""
         You are a Strict Data Quality Auditor & Feature Strategist.
-        
-        TASK: Generate a "Regression Readiness & Engineering Report" for 'linear_working.csv'.
-        
-        WORKFLOW:
-        
-        1. **INSPECT & IDENTIFY TARGET:**
-           - Run `run_local_python` with: `print(pd.read_csv('linear_working.csv').columns.tolist())`
-           - **IDENTIFY THE TARGET:** Look for 'price', 'medv', 'target', 'cost', 'amount'.
-           - **IDENTIFY IDs:** Look for 'ID', 'id', 'index', 'serial'.
-        
-        2. **STATISTICAL AUDIT:**
-           **MANDATORY CHECK:** Call `strict_statistical_check('linear_working.csv')`.
-           - This tool checks Logic, VIF, Skewness, and Scaling *all at once*.
-        
-        3. **SEMANTIC REASONING:**
-           - **Logic:** Check if positive-only features (Age, Area, Distance) have negative values.
-           - **Interaction:** Suggest 'Area' if you see 'Length'/'Width'.
-           - **Cardinality:** If tool reports > 20 unique values in a text column, suggest Target Encoding.
-        
-        4. **COMPREHENSIVE REPORT:** - Do not report just one issue. List **EVERY** failure found by the tool.
-           - If the tool finds VIF > 5 AND Skew > 1 AND Logic Errors, report ALL of them.
-            REPORT FORMAT (Strict Syntax):
-            --- AUDIT REPORT ---
-            TARGET: [Name of Target Column]
-            ISSUES:
-            1. [Stat Issue] (e.g. "VIF=8.2, CorrWithTarget=0.4 for 'tax'.") <- MUST INCLUDE NUMBERS.
-            2. [Logic Issue] (e.g. "Column 'crim' has negative values.")
-            3. [Identifier] (e.g. "Column 'ID' should be dropped.")
-            4. [Engineering Opp] (e.g. "Create interaction 'room_size' from 'rm' * 'tax'")
-            ...
+
+        TASK:
+        Generate a "Regression Readiness & Engineering Report" for 'linear_working.csv'.
+
+        TOOLS YOU CAN USE (AND NOTHING ELSE):
+        - run_local_python
+        - strict_statistical_check
+
+        Hard rules about tools:
+        - You MUST NOT call any other tools or tool names (no `tolist`, `describe`, `head`, etc.).
+        - If you need `.tolist()` or similar, use it only as a normal Python method INSIDE a `run_local_python` code block, e.g.:
+
+            import pandas as pd
+            df = pd.read_csv("linear_working.csv")
+            print(df.columns.tolist())
+
+        - All statistical quantities (VIF, skewness, correlations, scaling flags, etc.) must come from strict_statistical_check.
+        - Do NOT recompute or invent your own numeric values.
+
+        MANDATORY WORKFLOW (EVERY CALL):
+
+        STATISTICAL AUDIT (PRIMARY SOURCE OF TRUTH)
+        - First, call: strict_statistical_check("linear_working.csv")
+        - Treat the output of this tool as the SINGLE SOURCE OF TRUTH for:
+        - VIF and multicollinearity
+        - Skewness
+        - Scaling needs / high variance
+        - Logic issues (invalid or impossible values)
+        - Any leakage or warnings it reports
+        - You MUST NOT fabricate any numerical values or issues that are not mentioned in this tool output.
+        - If a quantity is not reported by the tool, say that it was "not reported by strict_statistical_check".
+
+        OPTIONAL STRUCTURAL INSPECTION (NO EXTRA STATS)
+        - ONLY if needed to understand structure, you MAY call run_local_python with a short script such as:
+
+            import pandas as pd
+            df = pd.read_csv("linear_working.csv")
+            print(df.columns.tolist())
+            print(df.dtypes)
+
+        - Use run_local_python ONLY for:
+        - Listing columns
+        - Inspecting dtypes
+        - Seeing a few example rows
+        - Do NOT compute new statistics. All stats must come from strict_statistical_check.
+
+        SEMANTIC REASONING (BASED ON TOOL OUTPUT)
+        - Use the strict_statistical_check results plus column-name semantics to reason about:
+        - Logic errors: e.g., negative values in positive-only features if the tool reports them.
+        - Identifiers: e.g., 'ID', 'id', 'index', 'serial'.
+        - Feature engineering opportunities: e.g., Length + Width => suggest Area.
+        - You may infer semantics from names, but MUST NOT invent statistical problems not mentioned in the tool output.
+
+        COMPREHENSIVE REPORT (STRICT FORMAT, NO CODE FENCES)
+        Your final answer MUST follow this exact textual structure:
+
+        --- AUDIT REPORT ---
+        TARGET: [Name of Target Column]
+        ISSUES:
+        1. [Issue 1 with numbers copied exactly from strict_statistical_check]
+        2. [Issue 2]
+        3. ...
         VERDICT: [READY / NOT READY]
-        """,
+
+        Rules for ISSUES:
+        - For each problem the tool reports (VIF, Skew, Scaling, Logic, Leakage, etc.), add a bullet with:
+        - Column name(s)
+        - Numeric values EXACTLY as reported
+        - If the tool reports no issues, write:
+        ISSUES:
+        (none reported by strict_statistical_check)
+
+        VERDICT (MUST MATCH TOOL)
+        - Always copy the verdict EXACTLY as strict_statistical_check reports.
+        - If tool says "VERDICT: READY", you MUST output "VERDICT: READY".
+        - If tool says "VERDICT: NOT READY", you MUST output "VERDICT: NOT READY".
+        - Never override the verdict.
+
+        HALLUCINATION GUARDRAILS (CRITICAL):
+        - Do NOT invent new tool names.
+        - Do NOT invent numeric values.
+        - Do NOT claim issues not mentioned by strict_statistical_check.
+        - If unsure about any detail, state: "not reported by strict_statistical_check".
+        - Output must be plain text, with no Markdown code blocks, no extra commentary.
+
+        Your entire answer must be ONLY the final audit report in the required format.
+    """,
         tools=[
             FunctionTool(run_local_python),
             FunctionTool(strict_statistical_check)
         ]
     )
+
 
 def create_linear_orchestrator() -> Agent:
     linear_critic = create_linear_critic()
@@ -139,10 +195,13 @@ def create_linear_orchestrator() -> Agent:
                 df = train_data
                 df, report = standard_cleaning_tool(df)
                 print(report)
-                train_data = df
+                SHARED_GLOBALS['train_data'] = df  
                 ```
                     
-            2. AUDIT LOOP: - Call 'Linear_Critic_Agent' to audit 'linear_working.csv' and read the report.
+            2. AUDIT LOOP: 
+            - Call 'Linear_Critic_Agent' to audit 'linear_working.csv' and read the report.
+            
+
             3. ACTION: 
             - **CRITICAL:** If the Critic reports multiple issues (e.g. "VIF High" AND "Skew High"), do not fix them one by one.
             - **WRITE ONE SINGLE PYTHON SCRIPT** that applies ALL fixes in sequence:
@@ -153,8 +212,9 @@ def create_linear_orchestrator() -> Agent:
                 5. Fix Scaling.
             - Execute this script using `run_linear_code`.
             - Fix issues using the "Smart Strategies".
-            - **IMPORTANT**: Any changes you make to `train_data` in memory MUST be synced to disk for the Critic to see.
-            - After changing `train_data`, Call `sync_memory_to_file()`.
+            - After modifying SHARED_GLOBALS['train_data'], call `sync_memory_to_file()` so the critic sees the updated data.
+            - **Anti-Looping:** If the Critic complains about the SAME issue for the SAME column more than once, do NOT re-apply the same fix. Instead, proceed toward FINALIZE.
+
             4. FINALIZE (MANDATORY):
             - Whether "VERDICT: READY" or you are stopping due to "Anti-Looping":
             
@@ -204,8 +264,8 @@ def create_linear_orchestrator() -> Agent:
             - **Persistence:** If you have already transformed a column once, DO NOT transform it again. Accept the remaining skew as "Best Effort".
             
             4. SCALING:
-            - Range Diff: `scaler.fit_transform(df[['col']])`
-
+            - Use `StandardScaler` for columns the critic flags as "Scaling Required" or with very high variance.
+            
             5. ENCODING (The "Tax" Fix):
             - **Low Cardinality (< 20):** One-Hot (`pd.get_dummies`).
             - **High Cardinality (> 20):** Target Encoding.
