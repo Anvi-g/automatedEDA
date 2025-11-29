@@ -4,6 +4,31 @@ import os
 import sys
 import io
 import traceback
+def safe_log1p_column(df: pd.DataFrame, col: str, registry: list) -> pd.DataFrame:
+    """
+    Safely apply log1p to df[col] only if it has not been transformed before.
+    Uses a shared registry list of transformed columns.
+    """
+    if col not in df.columns:
+        return df  # silently skip if column not present
+
+    if col in registry:
+        # Already transformed once, do nothing
+        return df
+
+    # Replace non-finite and negatives with a safe floor before log1p
+    series = df[col].astype(float)
+    series = series.replace([np.inf, -np.inf], np.nan)
+    # Ensure non-negative (log1p requires x > -1)
+    min_val = series.min(skipna=True)
+    if min_val < -0.999999:
+        shift = -min_val + 1.0
+        series = series + shift
+
+    df[col] = np.log1p(series)
+    registry.append(col)
+    return df
+    
 def standard_cleaning_tool(df: pd.DataFrame) -> tuple[pd.DataFrame, str]:
     """
     Standard cleaning for DataFrames (Memory-based).

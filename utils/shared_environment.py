@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 from typing import Dict, Any, Optional
 from datetime import datetime
-from utils.cleaning_tools import standard_cleaning_tool, load_training_data, run_logistic_code
+from utils.cleaning_tools import standard_cleaning_tool, load_training_data, run_logistic_code, safe_log1p_column
 from utils.hitl_tools import confirm_experiment_setup
 class SharedEnvironment:
     """Enhanced shared environment for agent communication"""
@@ -21,6 +21,7 @@ class SharedEnvironment:
             "load_training_data": load_training_data,
             "run_logistic_code": run_logistic_code,
             "confirm_experiment_setup": confirm_experiment_setup,
+            "safe_log1p_column": safe_log1p_column, 
 
             # Data Slots (Initialize to None)
             "raw_data": None,
@@ -37,10 +38,38 @@ class SharedEnvironment:
             
             "eda_progress": {},   
             "analysis_results": {},
-            "data_quality_report": {}
+            "data_quality_report": {},
+
+            "log_transformed_cols": [],       
+            "critic_messages": [],
         }
         self.globals["SHARED_GLOBALS"] = self.globals
-    
+
+    def add_transformation(self, transformation: str):
+        """Track applied transformations"""
+        self.globals["transformations_applied"].append({
+            "transformation": transformation,
+            "timestamp": datetime.now()
+        })
+
+    # ADDED: helper to register a log transform
+    def register_log_transform(self, column: str):
+        """Record that a log transform was applied to a column."""
+        log_cols = self.globals.get("log_transformed_cols", [])
+        if column not in log_cols:
+            log_cols.append(column)
+            self.globals["log_transformed_cols"] = log_cols
+            self.add_transformation(f"log1p applied to '{column}'")
+
+    def add_critic_message(self, message: str):
+        """Append a critic message summary for reporting."""
+        msgs = self.globals.get("critic_messages", [])
+        msgs.append({
+            "message": message,
+            "timestamp": datetime.now()
+        })
+        self.globals["critic_messages"] = msgs
+
     def update_state(self, key: str, value: Any):
         """Update shared state"""
         self.globals[key] = value
