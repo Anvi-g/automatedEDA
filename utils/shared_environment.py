@@ -2,7 +2,8 @@ import pandas as pd
 import numpy as np
 from typing import Dict, Any, Optional
 from datetime import datetime
-from utils.cleaning_tools import standard_cleaning_tool
+from utils.cleaning_tools import standard_cleaning_tool, load_training_data, run_logistic_code
+from utils.hitl_tools import confirm_experiment_setup
 class SharedEnvironment:
     """Enhanced shared environment for agent communication"""
     
@@ -12,11 +13,15 @@ class SharedEnvironment:
             "pd": pd,
             "np": np,
             "print": print,
+            "os": self._import_os(),
             
             
             # Tools
             "standard_cleaning_tool": standard_cleaning_tool,
-            
+            "load_training_data": load_training_data,
+            "run_logistic_code": run_logistic_code,
+            "confirm_experiment_setup": confirm_experiment_setup,
+
             # Data Slots (Initialize to None)
             "raw_data": None,
             "train_data": None,
@@ -40,6 +45,10 @@ class SharedEnvironment:
         """Update shared state"""
         self.globals[key] = value
     
+    def _import_os(self):
+        import os
+        return os
+
     def get_state(self, key: str) -> Any:
         """Get shared state"""
         return self.globals.get(key)

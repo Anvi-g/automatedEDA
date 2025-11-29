@@ -1,5 +1,9 @@
 import pandas as pd
 import numpy as np
+import os
+import sys
+import io
+import traceback
 def standard_cleaning_tool(df: pd.DataFrame) -> tuple[pd.DataFrame, str]:
     """
     Standard cleaning for DataFrames (Memory-based).
@@ -75,3 +79,38 @@ def load_training_data() -> pd.DataFrame:
     except Exception as e:
         print(f"Error loading data: {e}")
         return pd.DataFrame()
+
+def run_logistic_code(code: str) -> str:
+    """
+    Executes Python code in SHARED_GLOBALS environment (In-Process).
+    This function must be defined in a module where SHARED_GLOBALS is already
+    imported or available globally (e.g., from utils.shared_environment).
+    """
+    print(f"\n[🤖 Logistic Agent Code]:\n{code}\n")
+    old_stdout = sys.stdout
+    redirected_output = sys.stdout = io.StringIO()
+    
+    # 1. Use the globally available SHARED_GLOBALS directly
+    #    (Assumes 'from utils.shared_environment import SHARED_GLOBALS' is done at the top of the file)
+    global SHARED_GLOBALS # Declare it global for clarity and access assurance
+    
+    try:
+        # Pass the shared memory dict to exec
+        exec_globals = SHARED_GLOBALS
+        # Inject self-reference: Crucial for code blocks that modify SHARED_GLOBALS directly
+        exec_globals["SHARED_GLOBALS"] = SHARED_GLOBALS 
+        
+        # Execute the agent's code
+        exec(code, exec_globals)
+        
+        # Sync back updates from the execution scope to the global reference
+        # NOTE: This line is often redundant if the code modified SHARED_GLOBALS directly,
+        # but it serves as a robust final sync mechanism.
+        SHARED_GLOBALS.update(exec_globals)
+        
+        sys.stdout = old_stdout
+        return f"Execution Success. Output:\n{redirected_output.getvalue()}"
+    except Exception as e:
+        sys.stdout = old_stdout
+        # Always return the full traceback for debugging agent errors
+        return f"Execution Error:\n{traceback.format_exc()}"
