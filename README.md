@@ -172,7 +172,7 @@ Located at: `data/processed/linear_ready_train.csv`
 
 **2. Cleaning Report Example (`cleaning_report.md`)**
 
-```markdown
+"""
 # Cleaning Report
 
 ✔ Standard cleaning performed (NaNs filled, outliers removed).  
@@ -181,7 +181,7 @@ Located at: `data/processed/linear_ready_train.csv`
 ✔ Scaling applied to standardized predictors.  
 
 ### Remaining Issues
-Some features retain mild skew due to anti-looping protection.
+Some features retain mild skew due to anti-looping protection."""
 
 **3. Full Agent Log**
 Located at: `agent_trace.log` (Contains detailed "Thoughts" and "Tool Calls").
