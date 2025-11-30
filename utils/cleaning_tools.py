@@ -36,7 +36,7 @@ def standard_cleaning_tool(df: pd.DataFrame) -> tuple[pd.DataFrame, str]:
     Returns: (cleaned_df, report_string)
     """
     try:
-        df = df.copy() # Prevent SettingWithCopy warnings
+        df = df.copy()  
         report = []
 
         # 1. Drop Constant Columns
@@ -85,7 +85,7 @@ def standard_cleaning_tool(df: pd.DataFrame) -> tuple[pd.DataFrame, str]:
                     report.append(f"Removed {outliers.sum()} outliers from '{col}'.")
         
 
-        # 5. GLOBAL SCALING (Continuous predictors only)
+        # 5. GLOBAL SCALING  
 
         numeric_cols = df.select_dtypes(include=[np.number]).columns
         candidate_targets = ["price", "medv", "target", "y", "label", "amount", "cost"]
