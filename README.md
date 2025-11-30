@@ -92,7 +92,7 @@ ADEP saves the final artifacts:
 
 And outputs the final status:
 
-"""text
+"""
 DATA CLEANING COMPLETE (Perfect)
 // or
 DATA CLEANING COMPLETE (Best Effort)"""
@@ -129,7 +129,7 @@ automatedEDA/
 ## ⚙️ 7. Installation
 
 1. **Clone the repository**
-   ```bash
+   
    git clonehttps://github.com/Allen203060/automatedEDA
    cd automatedEDA/
 
@@ -157,13 +157,13 @@ Running `python main.py` will:
 * Log everything
 
 **Example Console Output:**
-```text
+"""
 [EDA] Suggested Target: price
 [HITL] Confirm the target variable: price
 [ORCH] Fixing VIF: dropping rad
 [CRITIC] High skew in black (Skew=4.47)
 ...
-DATA CLEANING COMPLETE (Perfect)
+DATA CLEANING COMPLETE (Perfect)"""
 
 ## 📊 9. Expected Outputs
 
