@@ -4,6 +4,7 @@ import os
 import sys
 import io
 import traceback
+from sklearn.preprocessing import StandardScaler 
 def safe_log1p_column(df: pd.DataFrame, col: str, registry: list) -> pd.DataFrame:
     """
     Safely apply log1p to df[col] only if it has not been transformed before.
@@ -39,10 +40,19 @@ def standard_cleaning_tool(df: pd.DataFrame) -> tuple[pd.DataFrame, str]:
         report = []
 
         # 1. Drop Constant Columns
+        constant_cols = []
         for col in df.columns:
-            if df[col].nunique() <= 1:
-                df.drop(columns=[col], inplace=True)
-                report.append(f"Dropped constant column '{col}'.")
+            unique_non_null = df[col].dropna().nunique()
+            if unique_non_null <= 1:
+                constant_cols.append(col)
+
+        if constant_cols:  
+            df = df.drop(columns=constant_cols)
+            report.append(
+                "Dropped constant (zero-variance) columns: "
+                + ", ".join(f"'{c}'" for c in constant_cols)
+                + "."
+            )
         
         # 2. Duplicates
         init_len = len(df)
@@ -56,13 +66,13 @@ def standard_cleaning_tool(df: pd.DataFrame) -> tuple[pd.DataFrame, str]:
                 if np.issubdtype(df[col].dtype, np.number):
                     median_val = df[col].median()
                     df[col] = df[col].fillna(median_val)
-                    report.append(f"Filled NaNs in {col} (Median).")
+                    report.append(f"Filled NaNs in {col} (Median = {median_val}).")
                 else:
                     mode_s = df[col].mode()
                     if not mode_s.empty:
                         mode_val = mode_s[0]
                         df[col] = df[col].fillna(mode_val)
-                        report.append(f"Filled NaNs in {col} (Mode).")
+                        report.append(f"Filled NaNs in {col} (Mode = {mode_val}).")
         
         # 4. Outliers (Z-score > 3) - Only for Numeric
         numeric_cols = df.select_dtypes(include=[np.number]).columns
@@ -74,11 +84,36 @@ def standard_cleaning_tool(df: pd.DataFrame) -> tuple[pd.DataFrame, str]:
                     df = df[~outliers]
                     report.append(f"Removed {outliers.sum()} outliers from '{col}'.")
         
+
+        # 5. GLOBAL SCALING (Continuous predictors only)
+
+        numeric_cols = df.select_dtypes(include=[np.number]).columns
+        candidate_targets = ["price", "medv", "target", "y", "label", "amount", "cost"]
+        target_col = None
+        for cname in candidate_targets:
+            if cname in df.columns:
+                target_col = cname
+                break
+
+        cols_to_scale = list(numeric_cols)
+        if target_col is not None and target_col in cols_to_scale:
+            cols_to_scale.remove(target_col)
+
+        if cols_to_scale:
+            scaler = StandardScaler()
+            df[cols_to_scale] = scaler.fit_transform(df[cols_to_scale])
+            report.append(
+                "Standardized continuous predictor columns: "
+                + ", ".join(f"'{c}'" for c in cols_to_scale)
+                + (f". Target column '{target_col}' left unscaled." if target_col else ".")
+            )
+
         report_str = "\n".join(report) if report else "No standard issues found."
         return df, report_str
 
     except Exception as e:
         return df, f"Error in cleaning: {e}"
+
 def load_training_data() -> pd.DataFrame:
     """
     Robustly loads training data from 'data/processed/'.

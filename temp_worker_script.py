@@ -1,25 +1,18 @@
+import pandas as pd
+train_data = pd.read_csv('linear_working.csv')
+train_data.to_csv('data/processed/linear_ready_train.csv', index=False)
+print("Saved final linear dataset.")
+
 report_content = '''
 # Cleaning Report
 
-**Initial Cleaning:**
-*   Removed outliers using the standard cleaning tool.
+Initial cleaning was performed using standard_cleaning_tool, which removed outliers and standardized the data.
 
-**Multicollinearity Handling:**
-*   Dropped 'rad' due to multicollinearity with 'tax'.
-
-**Skewness Handling:**
-*   Applied log transform to 'crim'.
-*   Applied log transform to 'zn'.
-*   Applied square transform to 'black'.
-
-**Scaling:**
-*   Applied StandardScaler to 'tax' and 'black'.
-
-**Other:**
-*   Dropped 'ID' column.
-
-**Remaining Issues:**
-*   Skewness in 'crim', 'zn', and 'black' (already transformed once).
+Further actions taken:
+- Dropped 'rad' due to multicollinearity (VIF > 5) and lower correlation with the target compared to 'tax'.
+- Applied log transform to 'crim' and 'zn' to reduce skewness.
+- Applied square transform to 'black' to reduce skewness.
+- Skipped re-transforming 'crim', 'zn', and 'black' due to anti-looping.
 '''
 
 with open('cleaning_report.md', 'w') as f:

@@ -11,11 +11,13 @@ logging.basicConfig(
     level=logging.ERROR,  # Only show errors, not warnings
     format='%(levelname)s: %(message)s'
 )
+logging.getLogger("google_genai.types").setLevel(logging.ERROR)   
+logging.getLogger("google_adk").setLevel(logging.ERROR)            
+logging.getLogger("httpx").setLevel(logging.ERROR) 
+
 async def main():
     """Main entry point for the data cleaning workflow"""
-    print("<system-reminder>")
     print("AGENTIC AI WORKFLOW STARTING")
-    print("</system-reminder>")
     print("🚀 Starting Agentic AI Data Cleaning Workflow")
     print("=" * 50)
     
@@ -30,10 +32,8 @@ async def main():
         # DO NOT save files here - agents should have already saved them
         # Files should be in data/processed/ directory
         
-        # Display results
-        print("\n<system-reminder>")
+        # Display result
         print("WORKFLOW EXECUTION COMPLETED")
-        print("</system-reminder>")
         print("🏁 Workflow Complete!")
         print("=" * 50)
         readiness_score = shared_env.get_state("readiness_score") or 0.0
@@ -44,11 +44,6 @@ async def main():
         print("FINAL VERIFICATION COMPLETED")
        
         print("🎉 WORKFLOW COMPLETED SUCCESSFULLY!")
-      
-        
- 
-        
-          
         
         print("\n🚀 Next Steps:")
         print("   1. Load the CSV files from data/processed/ directory")
@@ -57,9 +52,8 @@ async def main():
         print("=" * 60)
         
     except Exception as e:
-        print(f"<system-reminder>")
+ 
         print("WORKFLOW FAILED - CHECK ERROR DETAILS")
-        print(f"</system-reminder>")
         print(f"❌ Workflow failed: {e}")
         logging.error(f"Workflow error: {e}", exc_info=True)
         sys.exit(1)
